@@ -11,12 +11,50 @@ import io
 import os
 import hashlib
 from IPython.display import HTML
+import pickle
 
-def play_video(video_path, title="Video Title"):
+def cv2_put_text(image, text, position=(10, 10)):
+    font = cv2.FONT_HERSHEY_SIMPLEX  # Font type
+    font_scale = 0.5  # Font scale (size)
+    color = (0, 255, 0)  # Color in BGR (blue, green, red)
+    thickness = 2  # Thickness of the lines used to draw the text
+    cv2.putText(image, text, position, font, font_scale, color, thickness)
+
+def load_from_pickle(file_path):
+    try:
+        with open(file_path, 'rb') as file:
+            data = pickle.load(file)
+            return data
+    except FileNotFoundError:
+        print(f"The file {file_path} was not found.")
+        return None
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
+        
+def save_to_pickle(data, file_path):
+    try:
+        with open(file_path, 'wb') as file:
+            pickle.dump(data, file)
+    except Exception as e:
+        print(f"An error occurred while saving to pickle: {e}")
+
+def save_or_load_variable(var_name, pickles_loc):
+    file_path = f'{pickles_loc}/{var_name}.pkl'
+    var_value = None
+    if var_name in globals():
+        var_value = globals()[var_name];
+        save_to_pickle(var_value, file_path)
+    else :
+        var_value = load_from_pickle(file_path)
+        globals()[var_name] = var_value
+    return var_value
+
+def play_video(video_path, title="Video Title", autoplay=True):
     video_html = f"""
     <div>
         <h4>{title}</h4>
-        <video width="640" controls autoplay>
+        <video width="640" controls {'autoplay' if autoplay else ''}>
             <source src="{video_path}" type="video/mp4">
             Your browser does not support the video tag.
         </video>

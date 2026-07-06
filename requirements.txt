@@ -1,0 +1,12 @@
+ipykernel
+debugpy
+jupyterlab
+ipywidgets
+opencv-python
+pillow
+ultralytics
+deepface
+scenedetect
+matplotlib
+tqdm
+tf-keras==2.21.0

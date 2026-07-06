@@ -4,17 +4,6 @@ channels:
   - defaults
 dependencies:
   - python=3.11
-  - conda-forge::ipykernel
-  - conda-forge::debugpy
   - pip
   - pip:
-    - opencv-contrib-python
-    - jupyterlab
-    - xeus-python
-    - opencv-python
-    - pillow
-    - ultralytics
-    - ipywidgets
-    - deepface
-    - scenedetect
-
+    - -r requirements.txt

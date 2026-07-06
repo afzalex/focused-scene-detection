@@ -98,6 +98,8 @@ def is_file_recorded(filename):
     try:
         with open(md5_filename, "r") as file:
             checksum = file.readline().strip()
+            if not checksum:
+                return False
             return checksum == md5_val
     except FileNotFoundError:
         print("MD5 file not found.")
@@ -105,6 +107,72 @@ def is_file_recorded(filename):
     except IOError:
         print("Error reading MD5 file.")
         return False
+
+
+def create_video_writer(output_video_path, fps, frame_width, frame_height):
+    """Create a VideoWriter, trying codecs until one works on this platform."""
+    # Prefer mp4v/XVID: avc1/H264 often probe h264_v4l2m2m on Linux and fail
+    # with "Could not find a valid device" when no hardware encoder is present.
+    for codec in ("mp4v", "XVID"):
+        fourcc = cv2.VideoWriter_fourcc(*codec)
+        writer = cv2.VideoWriter(output_video_path, fourcc, fps, (frame_width, frame_height))
+        if writer.isOpened():
+            return writer
+        writer.release()
+    raise RuntimeError(f"Could not open VideoWriter for {output_video_path}")
+
+
+def pre_filter_video(
+    input_video_path,
+    output_video_path,
+    skipped_output_video_path=None,
+    frame_std_threshold=50,
+):
+    """
+    Keep frames above a grayscale std-dev threshold in output_video_path.
+    Optionally write rejected frames straight to skipped_output_video_path
+    instead of holding them in memory.
+    """
+    cap = cv2.VideoCapture(input_video_path)
+    if not cap.isOpened():
+        raise RuntimeError(f"Could not open video: {input_video_path}")
+
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    out = create_video_writer(output_video_path, fps, frame_width, frame_height)
+    skipped_out = None
+    if skipped_output_video_path is not None:
+        skipped_out = create_video_writer(
+            skipped_output_video_path, fps, frame_width, frame_height
+        )
+
+    kept_count = 0
+    skipped_count = 0
+    with tqdm(total=frame_count, desc="Pre-filtering video") as pbar:
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            std_dev = np.std(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY))
+            if std_dev > frame_std_threshold:
+                out.write(frame)
+                kept_count += 1
+            elif skipped_out is not None:
+                skipped_out.write(frame)
+                skipped_count += 1
+            else:
+                skipped_count += 1
+            pbar.update(1)
+
+    cap.release()
+    out.release()
+    if skipped_out is not None:
+        skipped_out.release()
+
+    return {"kept": kept_count, "skipped": skipped_count}
 
 
 def find_key(d, value):
